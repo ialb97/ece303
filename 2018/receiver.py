@@ -7,6 +7,20 @@ import utils
 import sys
 import socket
 
+def fletcher_chksum(data):
+        sum1 = 0
+        sum2 = 0
+        i = 0
+
+        while i < len(data):
+            sum1 = (sum1 + data[i])%65535
+            sum2 = (sum2 + sum1)%65535
+            i+=1
+        x = sum1*65536 + sum2
+        checksum = bytearray.fromhex('{:08x}'.format(x))
+        pad = bytearray(32-len(checksum))
+        return pad + checksum
+
 class Receiver(object):
 
     def __init__(self, inbound_port=50005, outbound_port=50006, timeout=10, debug_level=logging.INFO):
@@ -20,7 +34,32 @@ class Receiver(object):
         self.simulator.sndr_setup(timeout)
 
     def receive(self):
-        raise NotImplementedError("The base API class has no implementation. Please override and add your own.")
+        #receive the data from the sender
+        #check the data using the checksum
+        #if it's error free, save it in a buffer according to the sequence number
+        #if you get a duplicate ignore it
+        #if not drop it, and wait until the sender times out to send it again
+        #repeat until done
+        ack = bytearray('ACK')
+        ackchecksum = fletcher_chksum(ack)
+        full_ack = ackchecksum + ack
+        while True:
+            try:
+                received_data = self.simulator.u_receive()
+                data = received_data[32:len(received_data)]
+                check = fletcher_chksum(data)
+                print check
+                print received_data[0:32]
+                if check == received_data[0:32]:
+                    print 'the data is correct'
+                    self.simulator.u_send(full_ack)
+                else:
+                    print 'Something done fucked up'
+                print data
+            except socket.timeout:
+                sys.exit()
+
+        #raise NotImplementedError("The base API class has no implementation. Please override and add your own.")
 
 
 class BogoReceiver(Receiver):
@@ -43,5 +82,7 @@ class BogoReceiver(Receiver):
 
 if __name__ == "__main__":
     # test out BogoReceiver
-    rcvr = BogoReceiver()
-    rcvr.receive()
+    #rcvr = BogoReceiver()
+    #rcvr.receive()
+    re = Receiver()
+    re.receive()
