@@ -6,6 +6,7 @@ import channelsimulator
 import utils
 import sys
 import socket
+import struct
 
 def fletcher_chksum(data):
         sum1 = 0
@@ -13,7 +14,7 @@ def fletcher_chksum(data):
         i = 0
 
         while i < len(data):
-            sum1 = (sum1 + data[i])%65535
+            sum1 = (sum1 + ord(data[i]))%65535
             sum2 = (sum2 + sum1)%65535
             i+=1
         x = sum1*65536 + sum2
@@ -23,7 +24,7 @@ def fletcher_chksum(data):
 
 class Receiver(object):
 
-    def __init__(self, inbound_port=50005, outbound_port=50006, timeout=10, debug_level=logging.INFO):
+    def __init__(self, inbound_port=50005, outbound_port=50006, timeout=.02, debug_level=logging.INFO):
         self.logger = utils.Logger(self.__class__.__name__, debug_level)
 
         self.inbound_port = inbound_port
@@ -40,24 +41,61 @@ class Receiver(object):
         #if you get a duplicate ignore it
         #if not drop it, and wait until the sender times out to send it again
         #repeat until done
-        ack = bytearray('ACK')
+        ack = struct.pack('s','ACK')
         ackchecksum = fletcher_chksum(ack)
-        full_ack = ackchecksum + ack
-        while True:
+        full_ack = str(ackchecksum) + ack
+        filesize = 0
+        while filesize == 0:
             try:
                 received_data = self.simulator.u_receive()
                 data = received_data[32:len(received_data)]
+                data = str(data)
                 check = fletcher_chksum(data)
-                print check
-                print received_data[0:32]
-                if check == received_data[0:32]:
-                    print 'the data is correct'
+                if str(check) == received_data[0:32]:
+                    #print 'Receiver:the data is correct'
+                    filesize = struct.unpack('l',data)[0]
                     self.simulator.u_send(full_ack)
                 else:
-                    print 'Something done fucked up'
-                print data
+                    pass
+                    #print 'Receiver:Something done fucked up'
             except socket.timeout:
-                sys.exit()
+                pass
+
+        #print filesize
+        received_file = {}
+        packetsreceived = 0
+
+        while packetsreceived < filesize/float(980):
+            try:
+                #print "Receiver Debug: " + str(packetsreceived)
+                received_data = self.simulator.u_receive()
+                data = received_data[40:len(received_data)]
+                data = str(data)    
+                checker = str(received_data[32:len(received_data)])
+                check = fletcher_chksum(checker)
+                if check == received_data[0:32]:
+                    #print 'Receiver:the data is correct'
+                    seqnum = struct.unpack('l',received_data[32:40])[0]
+                    #print seqnum
+                    if seqnum not in received_file:
+                        #print "BAIDNAKFJ"
+                        received_file[seqnum] = data
+                        packetsreceived +=1
+                    ackseq = struct.pack('l',seqnum)
+                    full_ack = ackseq + "ACK"
+                    ackchecksum = fletcher_chksum(full_ack)
+                    full_ack = str(ackchecksum) + full_ack
+                    self.simulator.u_send(bytearray(full_ack))
+                else:
+                    pass
+                   #print 'Receiver:Something done fucked up'
+            except socket.timeout:
+                pass
+        j = long(0)
+        file = open("output.txt","wb")
+        while j < packetsreceived:
+            file.write(received_file[j])
+            j+=1
 
         #raise NotImplementedError("The base API class has no implementation. Please override and add your own.")
 
