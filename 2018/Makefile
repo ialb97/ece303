@@ -1,12 +1,12 @@
-INPUT ?= ./file_1MB.txt
+INPUT ?= ./100MBfile.txt
 OUTPUT ?= ./output.txt
 
 
 test:
-	python2 receiver.py > $(OUTPUT) & time python2 sender.py < $(INPUT) &
+	python receiver.py > $(OUTPUT) & time python sender.py < $(INPUT) &
 diff:
 	diff $(INPUT) $(OUTPUT)
 kill:
-	pkill python2
+	pkill python
 clean:
 	rm *.log $(OUTPUT) *.pyc
