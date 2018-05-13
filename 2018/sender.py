@@ -87,7 +87,7 @@ class Sender(object):
         i = 0
         seq = 0
         sequence_number = ceil(sizeofdata/float(packet_size))
-        while i<10:
+        while i<37:
             if i < sequence_number:
                 packets_to_send[i] = gen_packet(i,data,packet_size)#packets[i]
                 seq+=1
@@ -113,21 +113,21 @@ class Sender(object):
                     if check == received[0:32]:
                         ackseq = struct.unpack('l',received[32:40])[0]
                         self.logger.info("Receiving {}th ACK on port: {}".format(ackseq,self.inbound_port, ))
-                    if ackseq == -1:
-                        sys.exit()
+                        if ackseq == -1:
+                            sys.exit()
                     #print "Sender: " + str(ackseq)
                             #print 'Sender:the ACK ' + str(ackseq)+ ' is correct'
-                    if ackseq in packets_to_send:
+                        if ackseq in packets_to_send:
                         #del waiting_for_acks[ackseq]
-                        del packets_to_send[ackseq]
-                        sent = sent + 1
-                        seq = seq + 1
-                        if seq < sequence_number:
-                            packets_to_send[seq] = gen_packet(seq,data,packet_size)
+                            del packets_to_send[ackseq]
+                            sent = sent + 1
+                            seq = seq + 1
+                            if seq < sequence_number:
+                                packets_to_send[seq] = gen_packet(seq,data,packet_size)
                         #waiting_for_acks[seq]= packets_to_send[seq]
                             #self.simulator.u_send(bytearray(packets_to_send[seq]))
-                    else:
-                        pass
+                        else:
+                            pass
                 except socket.timeout:
                     pass
                         #print 'Sender:Something done fucked up with the ACK'
